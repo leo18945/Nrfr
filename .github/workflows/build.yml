@@ -1,4 +1,4 @@
-name: Build APK Final Fix
+name: Build APK Ultimate Fix
 
 on:
   workflow_dispatch:
@@ -24,19 +24,28 @@ jobs:
           mkdir -p $ANDROID_HOME/platforms/android-34
           curl -L https://raw.githubusercontent.com/Reginer/aosp-android-jar/refs/heads/main/android-34/android.jar -o $ANDROID_HOME/platforms/android-34/android.jar
 
-      # 修正点：授予权限并直接构建
-      # 使用 find 确保即使 gradlew 在子文件夹也能被找到
-      - name: Build Android APK
+      # 自动侦测并构建
+      - name: Locate and Build APK
         run: |
-          GRADLEW_PATH=$(find . -name gradlew)
-          GRADLE_DIR=$(dirname $GRADLEW_PATH)
-          cd $GRADLE_DIR
-          chmod +x ./gradlew
-          ./gradlew assembleDebug
+          echo "正在搜索项目结构..."
+          # 寻找包含 build.gradle 的目录，这才是真正的安卓项目根目录
+          GRADLE_ROOT=$(find . -name "build.gradle" -exec dirname {} + | head -n 1)
+          echo "发现项目根目录: $GRADLE_ROOT"
+          
+          cd "$GRADLE_ROOT"
+          
+          # 如果没有 gradlew，则直接使用系统安装的 gradle 进行构建
+          if [ ! -f "./gradlew" ]; then
+            echo "未发现 gradlew，尝试使用系统 gradle 构建..."
+            gradle assembleDebug
+          else
+            chmod +x ./gradlew
+            ./gradlew assembleDebug
+          fi
 
-      # 上传生成的 APK
+      # 强制搜索所有生成的 apk 并上传
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Nrfr-Latest-Fixed
-          path: "**/build/outputs/apk/debug/*.apk"
+          name: Nrfr-Final-Package
+          path: "**/*.apk" # 扫描全盘，只要是 apk 就带走
