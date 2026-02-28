@@ -1,11 +1,11 @@
-name: Build APK Only
+name: Build APK Final Fix
 
 on:
-  workflow_dispatch: # 方便你手动点击运行
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest # 改用 Linux，速度更快更稳定
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -14,26 +14,29 @@ jobs:
         with:
           distribution: "temurin"
           java-version: "21"
-          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # 关键步骤：下载作者需要的特殊 android.jar
+      # 下载特殊的 android.jar (原项目必须步骤)
       - name: Download android.jar
         run: |
           mkdir -p $ANDROID_HOME/platforms/android-34
           curl -L https://raw.githubusercontent.com/Reginer/aosp-android-jar/refs/heads/main/android-34/android.jar -o $ANDROID_HOME/platforms/android-34/android.jar
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
+      # 修正点：授予权限并直接构建
+      # 使用 find 确保即使 gradlew 在子文件夹也能被找到
       - name: Build Android APK
-        run: ./gradlew assembleDebug
+        run: |
+          GRADLEW_PATH=$(find . -name gradlew)
+          GRADLE_DIR=$(dirname $GRADLEW_PATH)
+          cd $GRADLE_DIR
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
 
-      # 将生成的 APK 传到 GitHub 界面供下载
+      # 上传生成的 APK
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Nrfr-Latest-APK
-          path: app/build/outputs/apk/debug/*.apk
+          name: Nrfr-Latest-Fixed
+          path: "**/build/outputs/apk/debug/*.apk"
